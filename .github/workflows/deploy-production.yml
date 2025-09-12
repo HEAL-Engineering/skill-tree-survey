@@ -240,7 +240,8 @@ jobs:
         attempt=1
         
         while [ $attempt -le $max_attempts ]; do
-          if curl -f -k https://skills-survey.heal.engineering/api/health; then
+          # Test the health endpoint at the root level
+          if curl -f -k https://skills-survey.heal.engineering/health; then
             echo "✅ Production deployment verified successfully!"
             break
           fi
