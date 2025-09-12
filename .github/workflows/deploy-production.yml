@@ -81,16 +81,22 @@ jobs:
 
     - name: Save Docker images as tar files
       run: |
+        # Create images directory in workspace
+        mkdir -p docker-images
+        
+        # Save Docker images to workspace directory
         docker save skill-survey-backend:latest skill-survey-backend:${{ github.sha }} \
-          -o /tmp/backend-images.tar
+          -o docker-images/backend-images.tar
         docker save skill-survey-frontend:latest skill-survey-frontend:${{ github.sha }} \
-          -o /tmp/frontend-images.tar
+          -o docker-images/frontend-images.tar
         
         # Compress the tar files
-        gzip /tmp/backend-images.tar
-        gzip /tmp/frontend-images.tar
+        gzip docker-images/backend-images.tar
+        gzip docker-images/frontend-images.tar
         
-        ls -lh /tmp/*.tar.gz
+        # Show file sizes
+        echo "Docker images ready for transfer:"
+        ls -lh docker-images/*.tar.gz
 
     - name: Copy Docker images to EC2
       uses: appleboy/scp-action@v0.1.5
@@ -99,9 +105,10 @@ jobs:
         username: ${{ secrets.EC2_USERNAME }}
         key: ${{ secrets.EC2_SSH_KEY }}
         port: ${{ secrets.EC2_PORT || 22 }}
-        source: "/tmp/backend-images.tar.gz,/tmp/frontend-images.tar.gz"
+        source: "docker-images/*.tar.gz"
         target: "/tmp"
         timeout: 10m
+        strip_components: 1  # This removes the 'docker-images' directory from the path
 
     - name: Deploy to EC2
       uses: appleboy/ssh-action@v1.0.0
