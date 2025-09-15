@@ -10,10 +10,15 @@ on:
       - 'Dockerfile*'
       - '.github/workflows/pr-validation.yml'
 
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -58,7 +63,7 @@ jobs:
 
     - name: Test Docker Compose Configuration
       run: |
-        docker-compose -f docker-compose.prod.yml config -q
+        docker compose -f docker-compose.test.yml config -q
         if [ $? -eq 0 ]; then
           echo "✅ Docker Compose configuration is valid"
         else
@@ -68,19 +73,9 @@ jobs:
 
     - name: Start Services with Docker Compose
       run: |
-        # Create a test compose file with the PR-specific images
-        cat docker-compose.prod.yml | \
-          sed 's|build:|# build:|g' | \
-          sed 's|dockerfile: Dockerfile.prod|# dockerfile: Dockerfile.prod|g' | \
-          sed 's|context: ./backend|# context: ./backend|g' | \
-          sed 's|context: ./frontend|# context: ./frontend|g' | \
-          sed 's|skill-survey-backend|skill-survey-backend:pr-${{ github.event.pull_request.number }}|g' | \
-          sed 's|skill-survey-frontend|skill-survey-frontend:pr-${{ github.event.pull_request.number }}|g' \
-          > docker-compose.test.yml
-        
-        # Start services
-        docker-compose -f docker-compose.test.yml up -d
-        
+        # Start services using the test compose file
+        docker compose -f docker-compose.test.yml up -d
+
         # Wait for services to be healthy
         echo "Waiting for services to start..."
         sleep 30
@@ -100,7 +95,7 @@ jobs:
           
           if [ $attempt -eq $max_attempts ]; then
             echo "❌ Backend health check failed after $max_attempts attempts"
-            docker-compose -f docker-compose.test.yml logs backend
+            docker compose -f docker-compose.test.yml logs backend
             exit 1
           fi
           
@@ -123,7 +118,7 @@ jobs:
           
           if [ $attempt -eq $max_attempts ]; then
             echo "❌ Frontend health check failed after $max_attempts attempts"
-            docker-compose -f docker-compose.test.yml logs frontend
+            docker compose -f docker-compose.test.yml logs frontend
             exit 1
           fi
           
@@ -156,8 +151,7 @@ jobs:
     - name: Cleanup
       if: always()
       run: |
-        docker-compose -f docker-compose.test.yml down -v || true
-        rm -f docker-compose.test.yml || true
+        docker compose -f docker-compose.test.yml down -v || true
         
         # Move cache to preserve it
         rm -rf /tmp/.buildx-cache
