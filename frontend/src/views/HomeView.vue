@@ -128,7 +128,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { sessionsApi } from '@/api';
 import { logger } from '@/api/client';
