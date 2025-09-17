@@ -2,7 +2,9 @@ version: '3.8'
 
 services:
   backend:
-    image: skill-survey-backend:latest
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
     container_name: skill-survey-backend
     ports:
       - "8000:8000"
@@ -38,7 +40,12 @@ services:
       start_period: 40s
 
   frontend:
-    image: skill-survey-frontend:latest
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+      args:
+        # Build-time API URL configuration
+        - VITE_API_URL=${VITE_API_URL:-http://localhost:8000}
     container_name: skill-survey-frontend
     ports:
       - "8080:80"

@@ -20,7 +20,7 @@ env:
 jobs:
   deploy:
     name: Deploy to Production
-    runs-on: ubuntu-latest-arm64  # Use ARM64 runner to match EC2 architecture
+    runs-on: ubuntu-latest
     environment:
       name: production
       url: https://skills-survey.heal.engineering
@@ -37,7 +37,8 @@ jobs:
         echo "Commit: ${{ github.sha }}"
         echo "Timestamp: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
 
-    # No need for buildx on ARM64 runners - use native docker build
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
 
     - name: Configure AWS credentials
       if: vars.USE_AWS_ECR == 'true'
@@ -61,17 +62,15 @@ jobs:
           echo "registry=docker.io" >> $GITHUB_OUTPUT
         fi
 
-    - name: Build and tag Docker images
+    - name: Build and tag Docker images locally
       run: |
-        echo "🔨 Building production Docker images..."
-
-        # Native ARM64 build - no cross-platform needed
+        # Build backend
         docker build \
           -f backend/Dockerfile.prod \
           -t skill-survey-backend:latest \
           -t skill-survey-backend:${{ github.sha }} \
           ./backend
-
+        
         # Build frontend with production API URL
         docker build \
           -f frontend/Dockerfile.prod \
@@ -79,8 +78,6 @@ jobs:
           -t skill-survey-frontend:${{ github.sha }} \
           --build-arg VITE_API_URL="${{ secrets.VITE_API_URL }}" \
           ./frontend
-
-        echo "✅ Docker images built successfully"
 
     - name: Save Docker images as tar files
       run: |
@@ -101,14 +98,14 @@ jobs:
         # Ensure files are readable
         chmod 644 *.tar.gz
 
-    - name: Copy Docker images and compose file to EC2
+    - name: Copy Docker images to EC2
       uses: appleboy/scp-action@v0.1.5
       with:
         host: ${{ secrets.EC2_HOST }}
         username: ${{ secrets.EC2_USERNAME }}
         key: ${{ secrets.EC2_SSH_KEY }}
         port: ${{ secrets.EC2_PORT || 22 }}
-        source: "backend-images.tar.gz,frontend-images.tar.gz,docker-compose.prod.yml"
+        source: "backend-images.tar.gz,frontend-images.tar.gz"
         target: "/tmp"
         timeout: 10m
 
@@ -123,52 +120,18 @@ jobs:
         script: |
           set -e
           
-          echo "📦 Preparing for deployment..."
+          echo "📦 Loading Docker images..."
           cd /tmp
-
-          # Backup current running images for rollback
-          echo "🔄 Backing up current images for potential rollback..."
-
-          # Get the image IDs of currently running containers
-          CURRENT_BACKEND_IMAGE=$(docker inspect skill-survey-backend --format='{{.Image}}' 2>/dev/null || echo "none")
-          CURRENT_FRONTEND_IMAGE=$(docker inspect skill-survey-frontend --format='{{.Image}}' 2>/dev/null || echo "none")
-
-          if [ "$CURRENT_BACKEND_IMAGE" != "none" ]; then
-            # Tag current images as rollback
-            docker tag skill-survey-backend:latest skill-survey-backend:rollback 2>/dev/null || true
-            docker tag skill-survey-frontend:latest skill-survey-frontend:rollback 2>/dev/null || true
-            echo "✅ Current images backed up with :rollback tag"
-          else
-            echo "ℹ️ No existing deployment found, skipping backup"
-          fi
-
-          # Load new images
-          echo "📦 Loading new Docker images..."
           gunzip -f backend-images.tar.gz frontend-images.tar.gz
-
-          # Force remove current :latest tags to ensure clean replacement
-          echo "Preparing to replace current images..."
-          docker rmi -f skill-survey-backend:latest skill-survey-frontend:latest 2>/dev/null || true
-
-          # Load new images (they will be tagged as :latest)
           docker load -i backend-images.tar
           docker load -i frontend-images.tar
-
+          
           # Clean up tar files
           rm -f backend-images.tar frontend-images.tar
-
-          echo "✅ New images loaded and ready for deployment"
-
-          echo "📝 Updating docker-compose configuration..."
+          
+          echo "📝 Creating production environment file..."
           cd ~/skill-tree-survey || cd /home/${{ secrets.EC2_USERNAME }}/skill-tree-survey || cd /opt/skill-tree-survey
-
-          # Backup and update docker-compose.prod.yml
-          if [ -f docker-compose.prod.yml ]; then
-            cp docker-compose.prod.yml docker-compose.prod.yml.backup.$(date +%Y%m%d_%H%M%S)
-          fi
-          cp /tmp/docker-compose.prod.yml ./docker-compose.prod.yml
-          echo "✅ Updated docker-compose.prod.yml"
-
+          
           # Backup current .env.production if it exists
           if [ -f .env.production ]; then
             cp .env.production .env.production.backup.$(date +%Y%m%d_%H%M%S)
@@ -187,18 +150,20 @@ jobs:
           EOF
           
           echo "🔄 Updating docker-compose services..."
-
-          # Images are already tagged as skill-survey-backend:latest and skill-survey-frontend:latest
-          # which matches what's in docker-compose.prod.yml
-
-          # Stop and remove old containers (force recreate to ensure new images are used)
+          
+          # Check current running services
+          docker-compose -f docker-compose.prod.yml ps
+          
+          # Pull any base images if needed
+          docker-compose -f docker-compose.prod.yml pull --ignore-pull-failures || true
+          
+          # Stop and remove old containers
           echo "Stopping old containers..."
-          docker-compose -f docker-compose.prod.yml down --volumes --remove-orphans 2>&1 | grep -v "level=warning" || true
-
-          # Start new containers with the pre-built images
+          docker-compose -f docker-compose.prod.yml down
+          
+          # Start new containers with updated images
           echo "Starting new containers..."
-          # Force recreate to ensure fresh containers with new images
-          docker-compose -f docker-compose.prod.yml up -d --force-recreate 2>&1 | grep -v "level=warning" || true
+          docker-compose -f docker-compose.prod.yml up -d
           
           # Wait for services to be ready
           echo "⏳ Waiting for services to start..."
@@ -209,44 +174,40 @@ jobs:
             echo "🏥 Running health checks..."
             
             # Health check for backend
-            echo -n "Checking backend health"
             max_attempts=15
             attempt=1
             while [ $attempt -le $max_attempts ]; do
-              if curl -sf http://localhost:8000/health >/dev/null 2>&1; then
-                echo " ✅"
+              if curl -f http://localhost:8000/health; then
+                echo "✅ Backend is healthy"
                 break
               fi
-
+              
               if [ $attempt -eq $max_attempts ]; then
-                echo " ❌"
-                echo "Backend health check failed after $max_attempts attempts"
-                docker-compose -f docker-compose.prod.yml logs --tail=20 backend 2>&1 | grep -v "level=warning"
+                echo "❌ Backend health check failed"
+                docker-compose -f docker-compose.prod.yml logs --tail=50 backend
                 exit 1
               fi
-
-              echo -n "."
+              
+              echo "Waiting for backend... (attempt $attempt/$max_attempts)"
               sleep 5
               attempt=$((attempt + 1))
             done
             
             # Health check for frontend
-            echo -n "Checking frontend health"
             attempt=1
             while [ $attempt -le $max_attempts ]; do
-              if curl -sf http://localhost:8080 >/dev/null 2>&1; then
-                echo " ✅"
+              if curl -f http://localhost:8080; then
+                echo "✅ Frontend is accessible"
                 break
               fi
-
+              
               if [ $attempt -eq $max_attempts ]; then
-                echo " ❌"
-                echo "Frontend health check failed after $max_attempts attempts"
-                docker-compose -f docker-compose.prod.yml logs --tail=20 frontend 2>&1 | grep -v "level=warning"
+                echo "❌ Frontend health check failed"
+                docker-compose -f docker-compose.prod.yml logs --tail=50 frontend
                 exit 1
               fi
-
-              echo -n "."
+              
+              echo "Waiting for frontend... (attempt $attempt/$max_attempts)"
               sleep 5
               attempt=$((attempt + 1))
             done
@@ -261,33 +222,15 @@ jobs:
             echo "⚠️  Health checks skipped by user request"
           fi
           
-          # Clean up old Docker images to save space (but keep rollback images)
+          # Clean up old Docker images to save space
           echo "🧹 Cleaning up old Docker images..."
-
-          # Remove old tagged images (keep only latest and rollback)
-          echo "Removing old image versions (keeping :latest and :rollback)..."
-          docker images --format "{{.Repository}}:{{.Tag}}" | grep -E "skill-survey-(backend|frontend):" | grep -v -E ":(latest|rollback)" | xargs -r docker rmi 2>/dev/null || true
-
-          # Remove dangling images
           docker image prune -f
-
-          # Optional: More aggressive cleanup (commented out by default)
-          # docker system prune -af --volumes --filter "until=24h"
-
-          echo "Disk space after cleanup:"
-          df -h /var/lib/docker
           
           # Show final status
           echo "📊 Deployment complete! Current status:"
-          docker-compose -f docker-compose.prod.yml ps 2>&1 | grep -v "level=warning"
-
-          echo ""
-          echo "🔄 Rollback images available:"
-          docker images | grep -E "skill-survey-(backend|frontend):rollback" || echo "No rollback images found"
-
-          echo ""
+          docker-compose -f docker-compose.prod.yml ps
+          
           echo "✅ Deployment successful!"
-          echo "ℹ️ To rollback: docker-compose down && docker tag skill-survey-backend:rollback skill-survey-backend:latest && docker tag skill-survey-frontend:rollback skill-survey-frontend:latest && docker-compose up -d"
 
     - name: Verify deployment
       if: github.event.inputs.skip_health_check != 'true'
