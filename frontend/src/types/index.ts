@@ -129,4 +129,10 @@ export interface SessionAnalytics {
   completion_rate: number;
   average_completion_time_minutes: number | null;
   unique_users: number;
+  total_users: number;
+  top_skills: Array<{
+    skill: string;
+    count: number;
+  }>;
+  category_breakdown: CategoryStatistics[];
 }
