@@ -127,6 +127,6 @@ export interface SessionAnalytics {
   total_sessions: number;
   completed_sessions: number;
   completion_rate: number;
-  average_completion_time_minutes: number;
+  average_completion_time_minutes: number | null;
   unique_users: number;
 }
