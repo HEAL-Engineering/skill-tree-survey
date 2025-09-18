@@ -296,13 +296,10 @@ jobs:
             exit 1
           fi
           
-          # 2. Frontend accessibility (test through nginx proxy)
-          if ! check_service_health "Frontend" "https://${{ secrets.TEST_EC2_HOST }}"; then
-            echo "⚠️  HTTPS frontend check failed, trying HTTP..."
-            if ! check_service_health "Frontend" "http://${{ secrets.TEST_EC2_HOST }}"; then
-              echo "❌ Frontend health check failed (both HTTPS and HTTP)"
-              exit 1
-            fi
+          # 2. Frontend accessibility (running on port 8080)
+          if ! check_service_health "Frontend" "http://${{ secrets.TEST_EC2_HOST }}:8080"; then
+            echo "❌ Frontend health check failed"
+            exit 1
           fi
           
           # 3. API endpoints
