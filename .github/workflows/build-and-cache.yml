@@ -40,17 +40,35 @@ jobs:
           echo "  Commit: ${{ github.sha }}"
           echo "  Tag: $TAG"
 
-      - name: Pre-build cleanup
+      - name: Pre-build cleanup and disk check
         run: |
           echo "🧹 Pre-build cleanup"
-          
+
+          # Check disk usage before cleanup
+          USAGE_BEFORE=$(df / | awk 'NR==2 {print $5}' | sed 's/%//')
+          echo "📊 Disk usage before cleanup: ${USAGE_BEFORE}%"
+
+          # Alert if disk usage is high
+          if [ $USAGE_BEFORE -gt 80 ]; then
+            echo "::warning::High disk usage detected before build: ${USAGE_BEFORE}%"
+            echo "⚠️ WARNING: Disk usage is critically high at ${USAGE_BEFORE}%"
+            echo "Running aggressive cleanup..."
+
+            # More aggressive cleanup when disk is getting full
+            docker system prune -af --volumes --filter "until=24h" || true
+            docker builder prune -af --filter "until=24h" || true
+          fi
+
           # Clean up any previous build artifacts
           rm -f *.tar.gz 2>/dev/null || true
-          
-          # Prune unused Docker resources to free up space
-          docker system prune -f
-          
-          # Show available disk space
+
+          # Standard cleanup - prune unused Docker resources
+          docker system prune -f || true
+          docker builder prune -f --filter "until=2h" || true
+
+          # Show available disk space after cleanup
+          USAGE_AFTER=$(df / | awk 'NR==2 {print $5}' | sed 's/%//')
+          echo "📊 Disk usage after cleanup: ${USAGE_AFTER}%"
           echo "Available disk space:"
           df -h /
 
@@ -161,35 +179,66 @@ jobs:
           retention-days: 7
           compression-level: 0  # Files are already compressed
 
-      - name: Post-build cleanup
+      - name: Aggressive post-build cleanup
         if: always()
         run: |
-          echo "🧹 Post-build cleanup"
-          
+          echo "🧹 Aggressive post-build cleanup"
+
+          # Check initial disk usage
+          INITIAL_USAGE=$(df / | awk 'NR==2 {print $5}' | sed 's/%//')
+          echo "📊 Disk usage before cleanup: ${INITIAL_USAGE}%"
+
           # Remove exported tar files (now in artifacts)
-          rm -f backend-${{ steps.meta.outputs.tag }}.tar.gz frontend-${{ steps.meta.outputs.tag }}.tar.gz
+          rm -f backend-*.tar.gz frontend-*.tar.gz
           echo "✅ Exported files cleaned up"
-          
-          # Remove the built images from local Docker (save space)
+
+          # Remove the built images from local Docker
           docker rmi skill-survey-backend:${{ steps.meta.outputs.tag }} 2>/dev/null || true
           docker rmi skill-survey-frontend:${{ steps.meta.outputs.tag }} 2>/dev/null || true
           echo "✅ Build images removed from local Docker"
-          
-          # Aggressive cleanup - remove all build caches and unused images
-          docker builder prune -f 2>/dev/null || true
-          docker image prune -f 2>/dev/null || true
-          docker container prune -f 2>/dev/null || true
-          
+
+          echo "🔧 Performing aggressive Docker cleanup..."
+
+          # Remove ALL unused images older than 1 hour
+          docker image prune -af --filter "until=1h" || true
+
+          # Remove build cache older than 1 hour (this should actually reclaim space)
+          docker builder prune -af --filter "until=1h" --keep-storage=1GB || true
+
+          # Clean up everything including volumes not used in last hour
+          docker system prune -af --volumes --filter "until=1h" || true
+
+          # Remove all stopped containers
+          docker container prune -f || true
+
           # Remove dangling images
-          docker images -f "dangling=true" -q | xargs -r docker rmi 2>/dev/null || true
-          
-          echo "✅ Docker cleanup completed"
-          
-          # Show final disk usage
-          echo "📊 Final disk usage:"
+          docker images -f "dangling=true" -q | xargs -r docker rmi -f 2>/dev/null || true
+
+          # For really aggressive cleanup if disk usage is still high
+          CURRENT_USAGE=$(df / | awk 'NR==2 {print $5}' | sed 's/%//')
+          if [ $CURRENT_USAGE -gt 85 ]; then
+            echo "⚠️ Disk usage still high at ${CURRENT_USAGE}%, running AGGRESSIVE cleanup"
+            docker builder prune --all -f || true
+            docker system prune -af --volumes || true
+          fi
+
+          echo "📊 Space reclaimed report:"
+          docker system df
+
+          # Final disk usage check and alert
+          FINAL_USAGE=$(df / | awk 'NR==2 {print $5}' | sed 's/%//')
+          echo "📊 Final disk usage: ${FINAL_USAGE}%"
           df -h /
-          
-          echo "🎯 Build process completed cleanly"
+
+          # Alert if disk is still high after cleanup
+          if [ $FINAL_USAGE -gt 80 ]; then
+            echo "::error::Disk usage remains high after cleanup: ${FINAL_USAGE}%"
+            echo "🚨 CRITICAL: Disk usage is ${FINAL_USAGE}% - manual intervention may be required"
+          elif [ $FINAL_USAGE -gt 70 ]; then
+            echo "::warning::Disk usage is moderately high: ${FINAL_USAGE}%"
+          fi
+
+          echo "🎯 Build process completed - Reduced disk usage from ${INITIAL_USAGE}% to ${FINAL_USAGE}%"
 
       - name: Build summary
         if: always()
