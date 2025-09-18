@@ -205,8 +205,11 @@ jobs:
           # Remove build cache older than 1 hour (this should actually reclaim space)
           docker builder prune -af --filter "until=1h" --keep-storage=1GB || true
 
-          # Clean up everything including volumes not used in last hour
-          docker system prune -af --volumes --filter "until=1h" || true
+          # Clean up system resources older than 1 hour (volumes don't support time filter)
+          docker system prune -af --filter "until=1h" || true
+
+          # Prune unused volumes separately (no time filter available)
+          docker volume prune -f || true
 
           # Remove all stopped containers
           docker container prune -f || true

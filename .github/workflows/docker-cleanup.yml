@@ -130,7 +130,10 @@ jobs:
 
             # System-wide prune for resources older than 24 hours
             echo "System-wide prune of resources older than 24 hours..."
-            docker system prune -af --volumes --filter "until=24h" || true
+            docker system prune -af --filter "until=24h" || true
+
+            # Prune unused volumes separately
+            docker volume prune -f || true
 
             echo "✅ Aggressive cleanup completed"
           else
@@ -159,7 +162,8 @@ jobs:
           docker volume prune -f || true
 
           echo "Full system prune..."
-          docker system prune -af --volumes || true
+          docker system prune -af || true
+          docker volume prune -f || true
 
           echo "✅ Deep clean completed"
 
