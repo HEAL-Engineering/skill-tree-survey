@@ -166,23 +166,25 @@ const progressPercentage = computed(() => {
   return Math.min(progress, 100);
 });
 
-// Helper function to count children of a question recursively
-const countQuestionChildren = async (questionId: number): Promise<number> => {
-  try {
-    const children = await questionsApi.getChildQuestions(questionId);
-    let count = children.length;
+// Store the full question tree for efficient lookups
+const fullQuestionTree = ref<any[]>([]);
+const treeNodeMap = new Map<number, any>();
 
-    // Recursively count children of children
-    for (const child of children) {
-      const childCount = await countQuestionChildren(child.id);
+// Helper function to build the node map and count children (no API calls)
+const buildNodeMapAndCount = (node: any): number => {
+  // Store this node in the map
+  treeNodeMap.set(node.id, node);
+
+  let count = 0;
+  if (node.children && node.children.length > 0) {
+    count += node.children.length;
+    for (const child of node.children) {
+      const childCount = buildNodeMapAndCount(child); // Recursive call stores all descendants
       questionTree.value.set(child.id, childCount);
       count += childCount;
     }
-
-    return count;
-  } catch (err) {
-    return 0;
   }
+  return count;
 };
 
 // Load initial data
@@ -197,25 +199,45 @@ const loadSurvey = async () => {
     }
     await sessionsApi.getSession(Number(props.sessionId));
 
-    // Load base questions
-    const questions = await questionsApi.getBaseQuestions();
+    // Fetch the entire question tree in ONE API call instead of 382+ calls!
+    const treeData = await questionsApi.getQuestionTree();
     if (import.meta.env.DEV) {
-      logger.info(`Loaded ${questions.length} base questions`);
+      logger.info(`Loaded complete question tree with ${treeData.length} base questions (single API call)`);
     }
 
-    if (questions.length === 0) {
+    if (treeData.length === 0) {
       throw new Error('No questions available');
     }
 
-    baseQuestions.value = questions.sort((a, b) => a.order_index - b.order_index);
+    fullQuestionTree.value = treeData;
 
-    // Count total questions including all children
-    let total = baseQuestions.value.length;
-    for (const question of baseQuestions.value) {
-      const childCount = await countQuestionChildren(question.id);
-      questionTree.value.set(question.id, childCount);
-      total += childCount;
+    // Build the node map and count all questions
+    let total = 0;
+    for (const node of treeData) {
+      // This will store ALL nodes (including nested children) in treeNodeMap
+      const childCount = buildNodeMapAndCount(node);
+      questionTree.value.set(node.id, childCount);
+      total += 1 + childCount; // 1 for the node itself + its children
     }
+
+    if (import.meta.env.DEV) {
+      logger.info(`TreeNodeMap contains ${treeNodeMap.size} nodes`);
+    }
+
+    // Extract base questions from the tree
+    baseQuestions.value = treeData
+      .filter(q => q.is_base)
+      .sort((a, b) => a.order_index - b.order_index)
+      .map(q => ({
+        id: q.id,
+        text: q.text,
+        parent_id: null,
+        is_base: true,
+        category: q.category,
+        order_index: q.order_index,
+        created_at: new Date().toISOString(),
+        updated_at: null
+      }));
 
     totalQuestionsCount.value = total;
     if (import.meta.env.DEV) {
@@ -335,20 +357,38 @@ const goDeeper = async () => {
   if (!currentQuestion.value) return;
 
   try {
-    // Get child questions
-    const children = await questionsApi.getChildQuestions(currentQuestion.value.id);
+    // Get child questions from the cached tree (NO API CALL!)
+    const currentNode = treeNodeMap.get(currentQuestion.value.id);
 
-    if (children.length > 0) {
-      // Go to first unanswered child
-      const nextChild = children
-        .sort((a, b) => a.order_index - b.order_index)
-        .find(q => !answeredQuestions.value.has(q.id));
+    if (import.meta.env.DEV) {
+      logger.info(`Looking for node ${currentQuestion.value.id} in treeNodeMap`, {
+        found: !!currentNode,
+        hasChildren: currentNode?.children?.length > 0
+      });
+    }
+
+    if (currentNode && currentNode.children && currentNode.children.length > 0) {
+      // Convert tree children to Question format and find first unanswered
+      const children = currentNode.children
+        .sort((a: any, b: any) => a.order_index - b.order_index)
+        .map((child: any) => ({
+          id: child.id,
+          text: child.text,
+          parent_id: currentQuestion.value!.id,
+          is_base: false,
+          category: child.category,
+          order_index: child.order_index,
+          created_at: new Date().toISOString(),
+          updated_at: null
+        }));
+
+      const nextChild = children.find((q: any) => !answeredQuestions.value.has(q.id));
 
       if (nextChild) {
         questionPath.value.push(currentQuestion.value);
         currentQuestion.value = nextChild;
         if (import.meta.env.DEV) {
-          logger.info(`Going deeper to: ${nextChild.text}`);
+          logger.info(`Going deeper to: ${nextChild.text} (from cached tree)`);
         }
         return;
       }
@@ -357,7 +397,7 @@ const goDeeper = async () => {
     // No children or all answered, go back
     goBack();
   } catch (err) {
-    logger.error('Failed to get child questions', err);
+    logger.error('Failed to get child questions from tree', err);
     goBack();
   }
 };
@@ -409,29 +449,39 @@ const goBack = async () => {
   while (questionPath.value.length > 0) {
     const parent = questionPath.value[questionPath.value.length - 1];
 
-    try {
-      // Get siblings (children of the parent)
-      const siblings = await questionsApi.getChildQuestions(parent.id);
-      const sortedSiblings = siblings.sort((a, b) => a.order_index - b.order_index);
+    // Get siblings from cached tree (NO API CALL!)
+    const parentNode = treeNodeMap.get(parent.id);
+
+    if (parentNode && parentNode.children && parentNode.children.length > 0) {
+      // Convert tree children to Question format
+      const siblings = parentNode.children
+        .sort((a: any, b: any) => a.order_index - b.order_index)
+        .map((child: any) => ({
+          id: child.id,
+          text: child.text,
+          parent_id: parent.id,
+          is_base: false,
+          category: child.category,
+          order_index: child.order_index,
+          created_at: new Date().toISOString(),
+          updated_at: null
+        }));
 
       // Find the next unanswered sibling
-      const nextSibling = sortedSiblings.find(q => !answeredQuestions.value.has(q.id));
+      const nextSibling = siblings.find((q: any) => !answeredQuestions.value.has(q.id));
 
       if (nextSibling) {
         // Found an unanswered sibling
         currentQuestion.value = nextSibling;
         if (import.meta.env.DEV) {
-          logger.info(`Moving to sibling: ${nextSibling.text}`);
+          logger.info(`Moving to sibling: ${nextSibling.text} (from cached tree)`);
         }
         return;
       }
-
-      // No unanswered siblings at this level, go up one level
-      questionPath.value.pop();
-    } catch (err) {
-      logger.error('Failed to get siblings', err);
-      questionPath.value.pop();
     }
+
+    // No unanswered siblings at this level, go up one level
+    questionPath.value.pop();
   }
 
   // We're back at the base level with no more children to explore
