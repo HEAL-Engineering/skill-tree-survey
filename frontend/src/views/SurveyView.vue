@@ -1,10 +1,10 @@
 <template>
   <div class="min-h-screen bg-black star-field flex flex-col" :class="{ 'stiff-mode': isStiffMode }">
-    <!-- Progress Bar -->
-    <div class="w-full px-4 pt-4">
+    <!-- Progress Bar - Fixed at top -->
+    <div class="fixed top-0 left-0 right-0 w-full px-4 pt-4 pb-2 bg-black/95 backdrop-blur-sm z-40 border-b border-green-400/20">
       <div class="max-w-3xl mx-auto">
         <div class="h-2 bg-primary/10 rounded-full overflow-hidden">
-          <div 
+          <div
             class="h-full bg-gradient-to-r from-primary to-cyan-400 transition-all duration-500 rounded-full"
             :style="{ width: `${progressPercentage}%` }"
           />
@@ -15,8 +15,8 @@
       </div>
     </div>
 
-    <!-- Main Content -->
-    <div class="flex-1 flex items-center justify-center px-4">
+    <!-- Main Content with padding for fixed header and footer on mobile -->
+    <div class="flex-1 flex items-center justify-center px-4 pt-20 pb-20 md:pb-4">
       <div v-if="loading" class="text-center">
         <div class="inline-block w-8 h-8 border-2 border-primary-faint border-t-primary rounded-full animate-spin mb-4"></div>
         <p class="text-primary-dim font-mono-primary text-sm">Loading questions...</p>
@@ -30,57 +30,78 @@
       </div>
 
       <div v-else-if="currentQuestion" class="w-full max-w-3xl">
-        <!-- Category Display -->
-        <div class="text-center mb-6">
-          <p v-if="currentQuestion.category" class="text-sm text-primary-dim font-mono-primary">
-            {{ currentQuestion.category }}
-          </p>
+        <!-- Mobile View with Swipeable Card (below md breakpoint) -->
+        <div class="block md:hidden">
+          <SwipeableCard
+            :text="currentQuestion.text"
+            :category="currentQuestion.category || undefined"
+            :animating="animating"
+            @swipeLeft="handleAnswer(false)"
+            @swipeRight="handleAnswer(true)"
+            @swipeStart="() => lastKey = null"
+          />
         </div>
 
-        <!-- Question Card -->
-        <div
-          class="glass-card text-center"
-          :key="currentQuestion.id"
-          :class="{ 'scale-95': animating }"
-        >
-          <h2 class="text-2xl md:text-3xl font-semibold mb-8 text-primary">
-            {{ currentQuestion.text }}
-          </h2>
+        <!-- Desktop View (md and above) -->
+        <div class="hidden md:block">
+          <!-- Question Card -->
+          <div
+            class="glass-card text-center"
+            :key="currentQuestion.id"
+            :class="{ 'scale-95': animating }"
+          >
+            <h2 class="text-2xl md:text-3xl font-semibold mb-8 text-primary">
+              {{ currentQuestion.text }}
+            </h2>
 
-          <!-- Response Buttons -->
-          <div class="flex justify-center gap-6">
-            <button
-              @click="handleAnswer(true)"
-              class="btn-yes group relative"
-              :class="{ 'btn-yes-active': lastKey === 'yes' }"
-            >
-              <span class="btn-yes-text">YES</span>
-              <div class="flex gap-1 text-xs opacity-70">
-                <kbd class="kbd-key kbd-yes">Y</kbd>
-                <span class="text-primary-dim">/</span>
-                <kbd class="kbd-key kbd-yes">↵</kbd>
-              </div>
-              <div class="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
-            </button>
+            <!-- Response Buttons -->
+            <div class="flex justify-center gap-6">
+              <button
+                @click="handleAnswer(true)"
+                class="btn-yes group relative"
+                :class="{ 'btn-yes-active': lastKey === 'yes' }"
+              >
+                <span class="btn-yes-text">YES</span>
+                <div class="flex gap-1 text-xs opacity-70">
+                  <kbd class="kbd-key kbd-yes">Y</kbd>
+                  <span class="text-primary-dim">/</span>
+                  <kbd class="kbd-key kbd-yes">↵</kbd>
+                </div>
+                <div class="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
+              </button>
 
+              <button
+                @click="handleAnswer(false)"
+                class="btn-no group relative"
+                :class="{ 'btn-no-active': lastKey === 'no' }"
+              >
+                <span class="btn-no-text">NO</span>
+                <kbd class="kbd-key kbd-no px-2">N</kbd>
+                <div class="absolute inset-0 bg-danger/5 opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
+              </button>
+            </div>
             <button
-              @click="handleAnswer(false)"
-              class="btn-no group relative"
-              :class="{ 'btn-no-active': lastKey === 'no' }"
+              v-if="answerHistory.length > 0 && canUndo"
+              @click="undoAnswer"
+              class="mt-6 text-xs flex-col items-center text-accent-dim hover:text-accent transition-colors group relative"
             >
-              <span class="btn-no-text">NO</span>
-              <kbd class="kbd-key kbd-no px-2">N</kbd>
-              <div class="absolute inset-0 bg-danger/5 opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
+              <span class="text-accent-dim text-[14px] font-bold mb-1 tracking-wider font-heading"> ← Undo <br></span>
+              <kbd class="px-2 py-0.5 bg-accent/10 border border-accent-dim text-accent-dim text-[10px] rounded">BACKSPACE</kbd>
+              <div class="absolute inset-0 bg-accent/5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded"></div>
             </button>
           </div>
+        </div>
+
+        <!-- Mobile Undo Button -->
+        <div v-if="answerHistory.length > 0 && canUndo" class="block md:hidden mt-4 text-center">
           <button
-            v-if="answerHistory.length > 0 && canUndo"
             @click="undoAnswer"
-            class="mt-6 text-xs flex-col items-center text-accent-dim hover:text-accent transition-colors group relative"
+            class="inline-flex items-center gap-2 px-4 py-2 text-accent-dim hover:text-accent transition-colors bg-black/50 border border-accent-dim/30 rounded"
           >
-            <span class="text-accent-dim text-[14px] font-bold mb-1 tracking-wider font-heading"> ← Undo <br></span>
-            <kbd class="px-2 py-0.5 bg-accent/10 border border-accent-dim text-accent-dim text-[10px] rounded">BACKSPACE</kbd>
-            <div class="absolute inset-0 bg-accent/5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded"></div>
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path>
+            </svg>
+            <span class="text-sm font-bold tracking-wider">Undo</span>
           </button>
         </div>
       </div>
@@ -90,21 +111,6 @@
       </div>
     </div>
 
-    <!-- Footer -->
-    <div class="p-4 text-center">
-      <div class="flex justify-center items-center gap-4 text-xs font-mono">
-        <span class="text-primary-dim">
-          Question {{ baseQuestionIndex + 1 }} of {{ baseQuestions.length }}
-        </span>
-        <span class="text-primary-faint">•</span>
-        <span class="text-cyan-400/60" v-if="questionPath.length > 0">
-          Depth {{ questionPath.length + 1 }}
-        </span>
-        <span class="text-accent-dim" v-else>
-          Base Level
-        </span>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -114,6 +120,7 @@ import { useRouter, useRoute } from 'vue-router';
 import { questionsApi, responsesApi, sessionsApi } from '@/api';
 import { logger } from '@/api/client';
 import type { Question, ResponseCreate } from '@/types';
+import SwipeableCard from '@/components/SwipeableCard.vue';
 
 // Props
 const props = defineProps<{
@@ -140,6 +147,11 @@ const baseQuestionIndex = ref(0);
 const answeredQuestions = ref(new Set<number>());
 const pendingResponses = ref<ResponseCreate[]>([]);
 
+// Progress tracking
+const totalQuestionsCount = ref(0);
+const questionsAnswered = ref(0);
+const questionTree = ref<Map<number, number>>(new Map()); // Maps question ID to number of children
+
 // Undo Logic
 const UNDO_TIMEOUT = 10000;
 const canUndo = ref(false);
@@ -149,10 +161,31 @@ const answerHistory = ref<Question[]>([]);
 
 // Computed
 const progressPercentage = computed(() => {
-  if (baseQuestions.value.length === 0) return 0;
-  const progress = (baseQuestionIndex.value / baseQuestions.value.length) * 100;
+  if (totalQuestionsCount.value === 0) return 0;
+  const progress = (questionsAnswered.value / totalQuestionsCount.value) * 100;
   return Math.min(progress, 100);
 });
+
+// Store the full question tree for efficient lookups
+const fullQuestionTree = ref<any[]>([]);
+const treeNodeMap = new Map<number, any>();
+
+// Helper function to build the node map and count children (no API calls)
+const buildNodeMapAndCount = (node: any): number => {
+  // Store this node in the map
+  treeNodeMap.set(node.id, node);
+
+  let count = 0;
+  if (node.children && node.children.length > 0) {
+    count += node.children.length;
+    for (const child of node.children) {
+      const childCount = buildNodeMapAndCount(child); // Recursive call stores all descendants
+      questionTree.value.set(child.id, childCount);
+      count += childCount;
+    }
+  }
+  return count;
+};
 
 // Load initial data
 const loadSurvey = async () => {
@@ -166,17 +199,51 @@ const loadSurvey = async () => {
     }
     await sessionsApi.getSession(Number(props.sessionId));
 
-    // Load base questions
-    const questions = await questionsApi.getBaseQuestions();
+    // Fetch the entire question tree in ONE API call instead of 382+ calls!
+    const treeData = await questionsApi.getQuestionTree();
     if (import.meta.env.DEV) {
-      logger.info(`Loaded ${questions.length} base questions`);
+      logger.info(`Loaded complete question tree with ${treeData.length} base questions (single API call)`);
     }
 
-    if (questions.length === 0) {
+    if (treeData.length === 0) {
       throw new Error('No questions available');
     }
 
-    baseQuestions.value = questions.sort((a, b) => a.order_index - b.order_index);
+    fullQuestionTree.value = treeData;
+
+    // Build the node map and count all questions
+    let total = 0;
+    for (const node of treeData) {
+      // This will store ALL nodes (including nested children) in treeNodeMap
+      const childCount = buildNodeMapAndCount(node);
+      questionTree.value.set(node.id, childCount);
+      total += 1 + childCount; // 1 for the node itself + its children
+    }
+
+    if (import.meta.env.DEV) {
+      logger.info(`TreeNodeMap contains ${treeNodeMap.size} nodes`);
+    }
+
+    // Extract base questions from the tree
+    baseQuestions.value = treeData
+      .filter(q => q.is_base)
+      .sort((a, b) => a.order_index - b.order_index)
+      .map(q => ({
+        id: q.id,
+        text: q.text,
+        parent_id: null,
+        is_base: true,
+        category: q.category,
+        order_index: q.order_index,
+        created_at: new Date().toISOString(),
+        updated_at: null
+      }));
+
+    totalQuestionsCount.value = total;
+    if (import.meta.env.DEV) {
+      logger.info(`Total questions count: ${total}`);
+    }
+
     currentQuestion.value = baseQuestions.value[0];
   } catch (err: any) {
     logger.error('Failed to load survey', err);
@@ -209,8 +276,18 @@ const handleAnswer = async (answer: boolean) => {
     // Add answer to history for undo
     answerHistory.value.push(currentQuestion.value);
 
-    // Mark as answered
+    // Mark as answered and update progress
     answeredQuestions.value.add(currentQuestion.value.id);
+    questionsAnswered.value++;
+
+    // If answering NO, add the number of skipped children to progress
+    if (!answer) {
+      const skippedCount = questionTree.value.get(currentQuestion.value.id) || 0;
+      questionsAnswered.value += skippedCount;
+      if (import.meta.env.DEV && skippedCount > 0) {
+        logger.info(`Skipping ${skippedCount} child questions`);
+      }
+    }
 
     // Store response
     const response: ResponseCreate = {
@@ -280,20 +357,38 @@ const goDeeper = async () => {
   if (!currentQuestion.value) return;
 
   try {
-    // Get child questions
-    const children = await questionsApi.getChildQuestions(currentQuestion.value.id);
+    // Get child questions from the cached tree (NO API CALL!)
+    const currentNode = treeNodeMap.get(currentQuestion.value.id);
 
-    if (children.length > 0) {
-      // Go to first unanswered child
-      const nextChild = children
-        .sort((a, b) => a.order_index - b.order_index)
-        .find(q => !answeredQuestions.value.has(q.id));
+    if (import.meta.env.DEV) {
+      logger.info(`Looking for node ${currentQuestion.value.id} in treeNodeMap`, {
+        found: !!currentNode,
+        hasChildren: currentNode?.children?.length > 0
+      });
+    }
+
+    if (currentNode && currentNode.children && currentNode.children.length > 0) {
+      // Convert tree children to Question format and find first unanswered
+      const children = currentNode.children
+        .sort((a: any, b: any) => a.order_index - b.order_index)
+        .map((child: any) => ({
+          id: child.id,
+          text: child.text,
+          parent_id: currentQuestion.value!.id,
+          is_base: false,
+          category: child.category,
+          order_index: child.order_index,
+          created_at: new Date().toISOString(),
+          updated_at: null
+        }));
+
+      const nextChild = children.find((q: any) => !answeredQuestions.value.has(q.id));
 
       if (nextChild) {
         questionPath.value.push(currentQuestion.value);
         currentQuestion.value = nextChild;
         if (import.meta.env.DEV) {
-          logger.info(`Going deeper to: ${nextChild.text}`);
+          logger.info(`Going deeper to: ${nextChild.text} (from cached tree)`);
         }
         return;
       }
@@ -302,7 +397,7 @@ const goDeeper = async () => {
     // No children or all answered, go back
     goBack();
   } catch (err) {
-    logger.error('Failed to get child questions', err);
+    logger.error('Failed to get child questions from tree', err);
     goBack();
   }
 };
@@ -318,6 +413,19 @@ const undoAnswer = async () => {
     lastPendingSend = null;
     const previousQuestion = answerHistory.value.pop();
     if (previousQuestion) {
+      // Get the last response to check if it was a NO answer
+      const lastResponse = pendingResponses.value[pendingResponses.value.length - 1];
+      const wasNoAnswer = lastResponse && !lastResponse.answer;
+
+      // Decrease progress for the question itself
+      questionsAnswered.value--;
+
+      // If it was a NO answer, also decrease by the number of skipped children
+      if (wasNoAnswer) {
+        const skippedCount = questionTree.value.get(previousQuestion.id) || 0;
+        questionsAnswered.value -= skippedCount;
+      }
+
       if (baseQuestions.value.some(q => q.id === currentQuestion.value!.id)) {
         baseQuestionIndex.value -= 1;
       } else {
@@ -341,29 +449,39 @@ const goBack = async () => {
   while (questionPath.value.length > 0) {
     const parent = questionPath.value[questionPath.value.length - 1];
 
-    try {
-      // Get siblings (children of the parent)
-      const siblings = await questionsApi.getChildQuestions(parent.id);
-      const sortedSiblings = siblings.sort((a, b) => a.order_index - b.order_index);
+    // Get siblings from cached tree (NO API CALL!)
+    const parentNode = treeNodeMap.get(parent.id);
+
+    if (parentNode && parentNode.children && parentNode.children.length > 0) {
+      // Convert tree children to Question format
+      const siblings = parentNode.children
+        .sort((a: any, b: any) => a.order_index - b.order_index)
+        .map((child: any) => ({
+          id: child.id,
+          text: child.text,
+          parent_id: parent.id,
+          is_base: false,
+          category: child.category,
+          order_index: child.order_index,
+          created_at: new Date().toISOString(),
+          updated_at: null
+        }));
 
       // Find the next unanswered sibling
-      const nextSibling = sortedSiblings.find(q => !answeredQuestions.value.has(q.id));
+      const nextSibling = siblings.find((q: any) => !answeredQuestions.value.has(q.id));
 
       if (nextSibling) {
         // Found an unanswered sibling
         currentQuestion.value = nextSibling;
         if (import.meta.env.DEV) {
-          logger.info(`Moving to sibling: ${nextSibling.text}`);
+          logger.info(`Moving to sibling: ${nextSibling.text} (from cached tree)`);
         }
         return;
       }
-
-      // No unanswered siblings at this level, go up one level
-      questionPath.value.pop();
-    } catch (err) {
-      logger.error('Failed to get siblings', err);
-      questionPath.value.pop();
     }
+
+    // No unanswered siblings at this level, go up one level
+    questionPath.value.pop();
   }
 
   // We're back at the base level with no more children to explore
