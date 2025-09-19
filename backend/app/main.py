@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 from app.config.settings import get_settings
 from app.database.connection import init_db, reset_db
 from app.seeders.seeder import Seeder, get_db
-from app.routes import questions, sessions, responses, admin
+from app.routes import questions, sessions, responses, admin, categories
 
 settings = get_settings()
 
@@ -80,6 +80,7 @@ app.add_middleware(
 app.include_router(questions.router, prefix=settings.API_PREFIX)
 app.include_router(sessions.router, prefix=settings.API_PREFIX)
 app.include_router(responses.router, prefix=settings.API_PREFIX)
+app.include_router(categories.router, prefix=settings.API_PREFIX)
 app.include_router(admin.router, prefix=settings.API_PREFIX)
 
 
