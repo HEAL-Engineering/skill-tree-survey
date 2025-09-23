@@ -6,6 +6,8 @@ FROM node:20-alpine AS builder
 
 # Accept build arguments
 ARG VITE_API_URL=http://localhost:8000
+ARG VITE_ADMIN_PASSWORD=admin123
+ARG VITE_CLOUDFRONT_URL=https://example.cloudfront.net
 
 WORKDIR /app
 
@@ -18,8 +20,10 @@ RUN npm ci
 # Copy source code
 COPY . .
 
-# Set environment variable for build
+# Set environment variables for build
 ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_ADMIN_PASSWORD=$VITE_ADMIN_PASSWORD
+ENV VITE_CLOUDFRONT_URL=$VITE_CLOUDFRONT_URL
 
 # Build the application
 RUN npm run build
