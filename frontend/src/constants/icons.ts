@@ -66,7 +66,7 @@ export const icons = {
     // ===========================================
     // MOBILE DEVELOPMENT
     // ===========================================
-    reactNative: createIconCustom('reactNative', `${CLOUDFRONT_URL}/react.svg`, 'React Native icon', 'React Native mobile framework'),
+    reactNative: createIconCustom('reactNative', `${CLOUDFRONT_URL}/frameworks/react.svg`, 'React Native icon', 'React Native mobile framework'),
     flutter: createIcon('flutter', `${CLOUDFRONT_URL}/frameworks/flutter.svg`),
     xamarin: createIcon('xamarin', `${CLOUDFRONT_URL}/xamarin.svg`),
     android: createIcon('android', `${CLOUDFRONT_URL}/android.svg`),
