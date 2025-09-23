@@ -12,7 +12,7 @@ export const technologyPatterns = {
   'go': /\b(go|golang)\b/i,
   'rust': /\b(rust)\b/i,
   'swift': /\b(swift)\b/i,
-  'kotlin': /\b(kotlin|jetpack compose)\b/i,
+  'kotlin': /\b(kotlin)\b/i,
   'dart': /\b(dart)\b/i,
   'swiftui': /\b(swiftui)\b/i,
   'jetpackcompose': /\b(jetpack compose)\b/i,
