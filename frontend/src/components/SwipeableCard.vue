@@ -72,6 +72,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useSwipeGestures } from '@/composables/useSwipeGestures';
 import { icons } from '@/constants/icons';
+import { technologyPatterns } from '@/constants/technologyPatterns';
 
 interface Props {
   text: string;
@@ -98,90 +99,6 @@ const handleImageError = (event: Event) => {
   img.style.display = 'none';
 };
 
-// Technology detection patterns
-const technologyPatterns = {
-  // Programming Languages
-  'python': /\b(python)\b/i,
-  'nodejs': /\b(node\.?js|nodejs)\b/i,
-  'typescript': /\b(typescript|ts)\b/i,
-  'java': /\b(java)\b/i,
-  'go': /\b(go|golang)\b/i,
-  'rust': /\b(rust)\b/i,
-  'swift': /\b(swift)\b/i,
-  'kotlin': /\b(kotlin|jetpack compose)\b/i,
-  'dart': /\b(dart|flutter)\b/i,
-  
-  // Frameworks & Libraries
-  'react': /\b(react)\b/i,
-  'vue': /\b(vue)\b/i,
-  'angular': /\b(angular)\b/i,
-  'svelte': /\b(svelte)\b/i,
-  'express': /\b(express)\b/i,
-  'django': /\b(django)\b/i,
-  'fastapi': /\b(fastapi)\b/i,
-  'tailwind': /\b(tailwind|tailwind css)\b/i,
-  'graphql': /\b(graphql)\b/i,
-  
-  // Databases
-  'mongodb': /\b(mongodb|mongo)\b/i,
-  'mysql': /\b(mysql)\b/i,
-  'postgres': /\b(postgresql|postgres)\b/i,
-  'dynamodb': /\b(dynamodb)\b/i,
-  'couchbase': /\b(couchbase)\b/i,
-  'redis': /\b(redis)\b/i,
-  'memcached': /\b(memcached)\b/i,
-  
-  // Cloud & Infrastructure
-  'docker': /\b(docker)\b/i,
-  'kubernetes': /\b(kubernetes|k8s)\b/i,
-  'helm': /\b(helm|argo cd|flux)\b/i,
-  'terraform': /\b(terraform)\b/i,
-  'ansible': /\b(ansible)\b/i,
-  'aws': /\b(aws)\b/i,
-  'azureDevops': /\b(azure devops)\b/i,
-  'azureServiceBus': /\b(azure service bus)\b/i,
-  
-  // Testing
-  'jest': /\b(jest)\b/i,
-  'cypress': /\b(cypress)\b/i,
-  'playwright': /\b(playwright)\b/i,
-  'selenium': /\b(selenium)\b/i,
-  'jmeter': /\b(jmeter)\b/i,
-  'k6': /\b(k6)\b/i,
-  
-  // Tools & Services
-  'git': /\b(git)\b/i,
-  'github': /\b(github)\b/i,
-  'gitlab': /\b(gitlab)\b/i,
-  'jenkins': /\b(jenkins)\b/i,
-  'circleci': /\b(circleci)\b/i,
-  'travis': /\b(travis ci)\b/i,
-  'prometheus': /\b(prometheus)\b/i,
-  'grafana': /\b(grafana)\b/i,
-  'jaeger': /\b(jaeger)\b/i,
-  'zipkin': /\b(zipkin)\b/i,
-  'kafka': /\b(kafka)\b/i,
-  'rabbitmq': /\b(rabbitmq)\b/i,
-  'pubsub': /\b(pubsub|google pub\/sub)\b/i,
-  'postman': /\b(postman)\b/i,
-  'figma': /\b(figma)\b/i,
-  'sketch': /\b(sketch)\b/i,
-  'adobeXd': /\b(adobe xd)\b/i,
-  'nginx': /\b(nginx)\b/i,
-  'vite': /\b(vite)\b/i,
-  'webpack': /\b(webpack)\b/i,
-  'babel': /\b(babel)\b/i,
-  'reactNative': /\b(react native)\b/i,
-  'xamarin': /\b(xamarin)\b/i,
-  
-  // Data Science & ML (individual patterns for technologies not covered by python pattern)
-  'lightgbm': /\b(lightgbm)\b/i,
-  'sagemaker': /\b(sagemaker)\b/i,
-  'mlflow': /\b(mlflow)\b/i,
-  'kubeflow': /\b(kubeflow)\b/i,
-
-  'grpc': /\b(grpc)\b/i,
-};
 
 // Detect technologies mentioned in the question text
 const detectedTechnologies = computed(() => {

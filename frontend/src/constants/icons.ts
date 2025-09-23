@@ -186,6 +186,4 @@ export const icons = {
     pulumi: createIcon('pulumi', `${import.meta.env.VITE_CLOUDFRONT_URL}/pulumi.svg`),
     snowflake: createIcon('snowflake', `${import.meta.env.VITE_CLOUDFRONT_URL}/snowflake.svg`),
     hf: createIcon('hf', `${import.meta.env.VITE_CLOUDFRONT_URL}/hf.svg`),
-
-    dedenne: createIcon('dedenne', `${import.meta.env.VITE_CLOUDFRONT_URL}/dedenne.png`),
 }
