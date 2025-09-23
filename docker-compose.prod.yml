@@ -13,12 +13,15 @@ services:
       # Admin password - CHANGE THIS IN PRODUCTION!
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
       
-      # CORS - Update with your actual frontend URL
-      - CORS_ORIGINS=${CORS_ORIGINS:-["http://localhost","http://localhost:80"]}
+      # CORS - Production frontend URLs
+      - CORS_ORIGINS=${CORS_ORIGINS:-["https://skills-survey.heal.engineering","http://skills-survey.heal.engineering"]}
       
       # Database reset (configurable via deployment - USE WITH CAUTION!)
       - RESET_DATABASE=${RESET_DATABASE:-false}
-      
+
+      # Environment
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+
       # API configuration
       - API_PREFIX=/api
       - APP_NAME=Skill Tree Survey

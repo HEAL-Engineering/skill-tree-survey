@@ -91,23 +91,31 @@ jobs:
         run: |
           echo "🔨 Building frontend image"
           
-          # Determine API URL based on environment
+          # Determine environment-specific variables
           if [[ "${{ steps.meta.outputs.tag }}" == test-* ]]; then
             API_URL="${{ secrets.TEST_VITE_API_URL || 'https://test-skills-survey.heal.engineering' }}"
-            echo "Using TEST API URL: $API_URL"
+            ADMIN_PASSWORD="${{ secrets.TEST_ADMIN_PASSWORD || 'test-admin-password' }}"
+            CLOUDFRONT_URL="${{ secrets.CLOUDFRONT_URL || 'https://example.cloudfront.net' }}"
+            echo "Using TEST environment configuration"
           elif [[ "${{ steps.meta.outputs.tag }}" == prod-* ]]; then
             API_URL="${{ secrets.VITE_API_URL || 'https://skills-survey.heal.engineering' }}"
-            echo "Using PROD API URL: $API_URL"
+            ADMIN_PASSWORD="${{ secrets.ADMIN_PASSWORD || 'admin123' }}"
+            CLOUDFRONT_URL="${{ secrets.CLOUDFRONT_URL || 'https://example.cloudfront.net' }}"
+            echo "Using PROD environment configuration"
           else
             API_URL="http://localhost:8000"  # PR/dev builds
-            echo "Using DEV API URL: $API_URL"
+            ADMIN_PASSWORD="admin123"
+            CLOUDFRONT_URL="https://example.cloudfront.net"
+            echo "Using DEV environment configuration"
           fi
           
-          # Build frontend with environment-specific API URL
+          # Build frontend with environment-specific configuration
           docker build \
             -f frontend/Dockerfile.prod \
             -t skill-survey-frontend:${{ steps.meta.outputs.tag }} \
             --build-arg VITE_API_URL="$API_URL" \
+            --build-arg VITE_ADMIN_PASSWORD="$ADMIN_PASSWORD" \
+            --build-arg VITE_CLOUDFRONT_URL="$CLOUDFRONT_URL" \
             --label "build.commit=${{ github.sha }}" \
             --label "build.branch=${{ github.ref_name }}" \
             --label "build.timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \

@@ -191,6 +191,7 @@ jobs:
           
           # Frontend Configuration
           VITE_API_URL=${{ secrets.TEST_VITE_API_URL }}
+          VITE_CLOUDFRONT_URL=${{ secrets.CLOUDFRONT_URL }}
           
           # Deployment info
           IMAGE_TAG=${{ needs.build-images.outputs.image-tag }}
