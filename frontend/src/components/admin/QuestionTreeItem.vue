@@ -87,7 +87,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
-import type { QuestionTree } from '@/types';
+import type { QuestionTree, TechnologyIcon } from '@/types';
 import { icons } from '@/constants/icons';
 import { technologyPatterns } from '@/constants/technologyPatterns';
 import { getTechnologyIconClasses } from '@/utils/iconClasses';
@@ -107,7 +107,7 @@ defineEmits<{
 const detectedTechnologies = computed(() => {
   if (!props.question.text) return [];
   
-  const technologies: Array<{ key: string; name: string; icon: any }> = [];
+  const technologies: Array<{ key: string; name: string; icon: TechnologyIcon }> = [];
   
   for (const [key, pattern] of Object.entries(technologyPatterns)) {
     if (pattern.test(props.question.text)) {
@@ -144,7 +144,7 @@ const isExpanded = ref(true); // Start expanded by default
 
 // Check if this question has children
 const hasChildren = computed(() => {
-  return Array.isArray(props.question.children) && props.question.children.length > 0;
+  return props.question.children && props.question.children.length > 0;
 });
 
 // Check if device is mobile or has touch

@@ -147,7 +147,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { questionsApi, responsesApi, sessionsApi } from '@/api';
 import { logger } from '@/api/client';
-import type { Question, ResponseCreate } from '@/types';
+import type { Question, ResponseCreate, TechnologyIcon } from '@/types';
 import SwipeableCard from '@/components/SwipeableCard.vue';
 import { icons } from '@/constants/icons';
 import { technologyPatterns } from '@/constants/technologyPatterns';
@@ -210,7 +210,7 @@ const progressPercentage = computed(() => {
 const detectedTechnologies = computed(() => {
   if (!currentQuestion.value) return [];
   
-  const technologies: Array<{ key: string; name: string; icon: any }> = [];
+  const technologies: Array<{ key: string; name: string; icon: TechnologyIcon }> = [];
   
   for (const [key, pattern] of Object.entries(technologyPatterns)) {
     if (pattern.test(currentQuestion.value.text)) {

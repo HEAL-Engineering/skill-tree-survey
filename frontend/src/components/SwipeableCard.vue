@@ -30,7 +30,6 @@
             decoding="async"
             @error="handleImageError"
           />
-          <!-- <span class="text-xs text-primary-subtle font-mono-primary">{{ tech.name }}</span> -->
         </div>
       </div>
 
@@ -70,6 +69,7 @@ import { useSwipeGestures } from '@/composables/useSwipeGestures';
 import { icons } from '@/constants/icons';
 import { technologyPatterns } from '@/constants/technologyPatterns';
 import { getTechnologyIconClasses } from '@/utils/iconClasses';
+import type { TechnologyIcon } from '@/types';
 
 interface Props {
   text: string;
@@ -99,7 +99,7 @@ const handleImageError = (event: Event) => {
 
 // Detect technologies mentioned in the question text
 const detectedTechnologies = computed(() => {
-  const technologies: Array<{ key: string; name: string; icon: any }> = [];
+  const technologies: Array<{ key: string; name: string; icon: TechnologyIcon }> = [];
   
   for (const [key, pattern] of Object.entries(technologyPatterns)) {
     if (pattern.test(props.text)) {
@@ -216,12 +216,7 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* Kafka icon styling */
-.kafka-icon {
-  background-color: white;
-  border-radius: 8px;
-  padding: 4px;
-}
+
 .swipeable-container {
   position: relative;
   width: 100%;

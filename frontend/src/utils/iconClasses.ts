@@ -36,19 +36,8 @@ export const TECHNOLOGIES_WITH_BACKGROUND = [
   'jmeter',
   'cypress',
   'pandas',
-  'feast'
+  'feast',
 ] as const;
-
-/**
- * Special styling for specific technologies
- */
-export const SPECIAL_TECHNOLOGY_STYLES = {
-  kafka: {
-    survey: 'kafka-icon',
-    card: 'kafka-icon',
-    admin: 'kafka-icon'
-  }
-} as const;
 
 /**
  * Background classes for different component contexts
@@ -71,20 +60,12 @@ export function getTechnologyIconClasses(
 ): string[] {
   const classes: string[] = [BASE_ICON_CLASSES[context]];
   
-  // Add special styling for specific technologies
-  if (techKey in SPECIAL_TECHNOLOGY_STYLES) {
-    const specialClass = SPECIAL_TECHNOLOGY_STYLES[techKey as keyof typeof SPECIAL_TECHNOLOGY_STYLES][context];
-    if (specialClass) {
-      classes.push(specialClass);
-    }
-  }
-  
   // Add background styling for technologies that need it
   if (TECHNOLOGIES_WITH_BACKGROUND.includes(techKey as any)) {
     classes.push(BACKGROUND_CLASSES[context]);
   }
   
-  return classes;
+  return classes.join(' ');
 }
 
 /**
