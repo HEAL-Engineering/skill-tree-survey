@@ -1,0 +1,20 @@
+# Local Terraform state and working dirs — never commit these.
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+
+# Override files are for local-only tweaks.
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# CLI config that may hold credentials.
+.terraformrc
+terraform.rc
+
+# NOTE: .terraform.lock.hcl and environments/*.tfvars ARE committed
+# (the tfvars here contain only non-secret infra IDs).
