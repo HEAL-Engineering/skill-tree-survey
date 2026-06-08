@@ -43,9 +43,19 @@ fi
 echo -e "${CYAN}Generating ${OUTPUT_FILE}${NC} from 1Password vault ${CYAN}${VAULT}${NC}"
 
 if ! op vault get "$VAULT" >/dev/null 2>&1; then
+    # The LOCAL vault is optional — the app has safe local defaults. Other envs
+    # (e.g. prod) must have their vault, so missing is a hard error there.
+    if [ "$ENV" = "local" ]; then
+        echo -e "${YELLOW}Vault '${VAULT}' not found — writing an empty .env.local (app uses defaults).${NC}"
+        cat > "$OUTPUT_FILE" << EOF
+# Environment: local — no SKILL-TREE-LOCAL vault; using app defaults.
+# Generated: $(date)
+EOF
+        exit 0
+    fi
     echo -e "${RED}Vault '${VAULT}' not found (or not signed in).${NC}"
     echo "  Sign in:        op signin   (or: task env:setup)"
-    echo "  Create vaults:  see README / docs (SKILL-TREE-LOCAL, SKILL-TREE-PROD)"
+    echo "  Create vault:   op vault create ${VAULT}"
     exit 1
 fi
 
