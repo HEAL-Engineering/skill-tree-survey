@@ -141,7 +141,7 @@ class Seeder:
         except Exception as e:
             self.db.rollback()
             logger.error(f"Error seeding database: {str(e)}", exc_info=True)
-            raise e
+            raise
 
     def clear_all_questions(self) -> int:
         """

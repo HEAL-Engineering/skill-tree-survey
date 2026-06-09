@@ -129,9 +129,9 @@ class QuestionDAO(BaseDAO[Question]):
 
             self.db.commit()
             return True
-        except Exception as e:
+        except Exception:
             self.db.rollback()
-            raise e
+            raise
 
     def delete_with_children(self, id: int) -> bool:
         """

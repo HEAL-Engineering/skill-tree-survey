@@ -53,7 +53,8 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          # Single source of truth: resolves a version satisfying engines.node.
+          node-version-file: frontend/package.json
           cache: pnpm
           cache-dependency-path: frontend/pnpm-lock.yaml
 

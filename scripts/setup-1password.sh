@@ -66,6 +66,7 @@ cat > .1password.yml << EOF
 # Regenerate via: task env:setup
 account: $SELECTED
 EOF
+chmod 600 .1password.yml
 echo -e "${GREEN}Wrote .1password.yml${NC}"
 echo ""
 echo "Next steps:"

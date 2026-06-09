@@ -25,6 +25,12 @@ ENV="${1:-local}"
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
 
+# jq parses the `op item list` JSON below — fail fast with a clear message.
+if ! command -v jq >/dev/null 2>&1; then
+    echo -e "${RED}jq is required but not installed.${NC} Install it (e.g. brew install jq) and re-run."
+    exit 1
+fi
+
 case "$ENV" in
     local) VAULT="${VAULT_PREFIX}-LOCAL" ;;
     prod)  VAULT="${VAULT_PREFIX}-PROD" ;;

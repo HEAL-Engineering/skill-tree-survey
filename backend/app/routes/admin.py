@@ -2,6 +2,8 @@
 Admin API routes with password protection.
 """
 
+import secrets
+
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 
 from app.core.config import settings
@@ -34,7 +36,8 @@ def verify_admin_password(x_admin_password: str = Header(...)):
     Raises:
         HTTPException: If password is incorrect
     """
-    if x_admin_password != settings.ADMIN_PASSWORD:
+    # Constant-time comparison to avoid leaking the password via timing.
+    if not secrets.compare_digest(x_admin_password, settings.ADMIN_PASSWORD):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid admin password"
         )

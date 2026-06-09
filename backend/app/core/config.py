@@ -98,7 +98,10 @@ class Settings(BaseSettings):
     logger: Any | None = None
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        # Later files win. Includes the repo-root .env.local that
+        # `task env:generate` writes, so `cd backend && uv run uvicorn ...`
+        # picks up generated values too (missing files are ignored).
+        env_file=(".env", "../.env.local", ".env.local"),
         env_file_encoding="utf-8",
         case_sensitive=True,
         extra="ignore",
@@ -125,6 +128,14 @@ def get_settings() -> Settings:
     enabled when SENTRY_DSN is set (so local development logs to stdout only).
     """
     settings = Settings()
+
+    # Fail fast on insecure production deploys: the dev default is fine locally,
+    # but production must set a real ADMIN_PASSWORD (1Password -> .env.prod).
+    if settings.ENVIRONMENT == "production" and settings.ADMIN_PASSWORD == "admin123":
+        raise ValueError(
+            "ADMIN_PASSWORD is still the dev default in production. "
+            "Set it in the SKILL-TREE-PROD vault and redeploy (task prod:deploy)."
+        )
 
     log_level = _LOG_LEVEL_MAP.get(settings.LOG_LEVEL.lower(), logging.INFO)
     sentry_logs_level = (

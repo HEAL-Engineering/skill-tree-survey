@@ -40,11 +40,22 @@ def get_db() -> Generator[Session]:
         db.close()
 
 
+def _import_models() -> None:
+    """Import all model modules so they register on Base.metadata.
+
+    create_all/drop_all only see tables whose models have been imported;
+    importing here keeps init_db/reset_db safe to call from scripts and tests
+    that haven't imported the app's routes.
+    """
+    import app.models  # noqa: F401
+
+
 def init_db() -> None:
     """
     Initialize database by creating all tables.
     """
 
+    _import_models()
     Base.metadata.create_all(bind=engine)
 
 
@@ -54,6 +65,7 @@ def reset_db() -> None:
     WARNING: This will delete all data!
     """
 
+    _import_models()
     logger.warning("Resetting database - all data will be lost!")
     Base.metadata.drop_all(bind=engine)
     logger.info("All tables dropped")

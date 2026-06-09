@@ -73,9 +73,9 @@ class BaseDAO[ModelType: Base](ABC):
             self.db.commit()
             self.db.refresh(db_obj)
             return db_obj
-        except SQLAlchemyError as e:
+        except SQLAlchemyError:
             self.db.rollback()
-            raise e
+            raise
 
     def update(self, id: int, **kwargs) -> ModelType | None:
         """
@@ -103,9 +103,9 @@ class BaseDAO[ModelType: Base](ABC):
             self.db.commit()
             self.db.refresh(db_obj)
             return db_obj
-        except SQLAlchemyError as e:
+        except SQLAlchemyError:
             self.db.rollback()
-            raise e
+            raise
 
     def delete(self, id: int) -> bool:
         """
@@ -128,9 +128,9 @@ class BaseDAO[ModelType: Base](ABC):
             self.db.delete(db_obj)
             self.db.commit()
             return True
-        except SQLAlchemyError as e:
+        except SQLAlchemyError:
             self.db.rollback()
-            raise e
+            raise
 
     def count(self) -> int:
         """
@@ -187,6 +187,6 @@ class BaseDAO[ModelType: Base](ABC):
             self.db.add_all(db_objects)
             self.db.commit()
             return db_objects
-        except SQLAlchemyError as e:
+        except SQLAlchemyError:
             self.db.rollback()
-            raise e
+            raise

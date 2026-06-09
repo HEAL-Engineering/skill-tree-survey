@@ -109,8 +109,8 @@ cd infrastructure/terraform
 # 1. Initialize the S3 backend (creates the state object under our key).
 terraform init
 
-# 2. Review the plan — expect 3 creates: instance, EIP, EIP association,
-#    security group. NOTHING destroyed (the old box isn't in state).
+# 2. Review the plan — expect 2 creates: instance + security group (no EIP —
+#    account quota is full). NOTHING destroyed (the old box isn't in state).
 terraform plan -var-file=environments/prod.tfvars
 
 # 3. Create the instance.

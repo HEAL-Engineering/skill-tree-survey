@@ -63,7 +63,11 @@ variable "subnet_id" {
 # -----------------------------------------------------------------------------
 
 variable "ssh_allowed_cidrs" {
-  description = "CIDR blocks allowed to SSH in. The app itself is served via Cloudflare Tunnel (outbound-only), so 22 is the ONLY inbound port — restrict this in production."
+  description = "CIDR blocks allowed to SSH in. The app itself is served via Cloudflare Tunnel (outbound-only), so 22 is the ONLY inbound port. No default on purpose — set SSH_ALLOWED_CIDRS in the SKILL-TREE-INFRA vault (task tf:gen) and restrict it where you can."
   type        = list(string)
-  default     = ["0.0.0.0/0"]
+
+  validation {
+    condition     = length(var.ssh_allowed_cidrs) > 0
+    error_message = "ssh_allowed_cidrs must list at least one CIDR (e.g. [\"1.2.3.4/32\"])."
+  }
 }

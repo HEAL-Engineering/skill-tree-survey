@@ -12,7 +12,9 @@ services:
     container_name: skill-tree-survey-cloudflared
     command: tunnel --no-autoupdate run
     env_file:
-      - .env.prod # provides TUNNEL_TOKEN
+      # provides TUNNEL_TOKEN; explicit required -> compose refuses to start without it
+      - path: .env.prod
+        required: true
     depends_on:
       backend:
         condition: service_healthy
@@ -29,7 +31,10 @@ services:
     image: ghcr.io/heal-engineering/skill-tree-survey-api:latest
     container_name: skill-tree-survey-backend
     env_file:
-      - .env.prod # ADMIN_PASSWORD, CORS_ORIGINS, ENVIRONMENT, SENTRY_DSN, SENTRY_ENVIRONMENT
+      # ADMIN_PASSWORD, CORS_ORIGINS, ENVIRONMENT, SENTRY_DSN, SENTRY_ENVIRONMENT;
+      # explicit required -> no silent fall-back to insecure app defaults
+      - path: .env.prod
+        required: true
     environment:
       # Container-path / prod overrides (win over .env.prod).
       - DATABASE_URL=sqlite:////app/data/skill_survey.db

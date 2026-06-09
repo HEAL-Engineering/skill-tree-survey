@@ -33,6 +33,12 @@ OUTPUT_FILE="infrastructure/terraform/environments/prod.tfvars"
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; CYAN='\033[0;36m'; NC='\033[0m'
 
+# jq parses the `op item list` JSON below — fail fast with a clear message.
+if ! command -v jq >/dev/null 2>&1; then
+    echo -e "${RED}jq is required but not installed.${NC} Install it (e.g. brew install jq) and re-run."
+    exit 1
+fi
+
 # Pin to a specific 1Password account when the same email is on multiple
 # accounts (work + personal). Written by scripts/setup-1password.sh.
 if [ -f .1password.yml ]; then
