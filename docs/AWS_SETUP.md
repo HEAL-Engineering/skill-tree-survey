@@ -21,14 +21,16 @@ SQLite persists on the `sqlite_data` named volume, so image updates don't lose d
 - **Type:** `t4g.medium` — AWS Graviton (**arm64**). The CI image is built for
   `linux/arm64` to match, so the instance architecture matters.
 - **OS:** Amazon Linux 2023 (arm64).
-- **Networking:** an Elastic IP for stable SSH; the app is reached via the tunnel,
-  not the IP.
+- **Networking:** auto-assigned public IP, used only for SSH (the app is reached
+  via the tunnel, not the IP). No Elastic IP — the account's EIP quota is full;
+  the IP changes if the box is stopped/started (`terraform output public_ip`,
+  then update `~/.ssh/config`).
 - **Security group:** inbound **SSH (22) only** — the tunnel is outbound, so 80/443
   are never opened. All egress allowed.
 
 ## Provisioning (recommended: Terraform)
 
-The instance, Elastic IP, and security group are managed as code in
+The instance and security group are managed as code in
 [infrastructure/terraform/](../infrastructure/terraform/). Terraform's `user_data`
 ([scripts/user_data.sh](../infrastructure/terraform/scripts/user_data.sh)) installs
 Docker + the Compose plugin on first boot. Follow the runbook in
@@ -39,7 +41,7 @@ cd infrastructure/terraform
 terraform init
 terraform plan  -var-file=environments/prod.tfvars
 terraform apply -var-file=environments/prod.tfvars
-terraform output elastic_ip       # point ~/.ssh/config Host skill-tree at this
+terraform output public_ip        # point ~/.ssh/config Host skill-tree at this
 ```
 
 Then ship the stack from your workstation:

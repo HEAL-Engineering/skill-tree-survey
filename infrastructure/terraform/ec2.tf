@@ -15,18 +15,11 @@
 # every apply. user_data and the root volume ARE managed (this is a fresh box).
 # =============================================================================
 
-# Elastic IP — gives the box a stable public address that survives stop/start.
-# (Serving doesn't depend on it; the Cloudflare Tunnel is outbound. It only
-#  matters for SSH — point your `skill-tree` SSH host at this IP after apply.)
-resource "aws_eip" "api" {
-  domain = "vpc"
-
-  tags = {
-    Name        = "${var.project_name}-eip-${var.environment}"
-    Environment = var.environment
-  }
-}
-
+# NO Elastic IP — the account's EIP quota is fully used, and serving doesn't
+# depend on one (the Cloudflare Tunnel is outbound). The auto-assigned public IP
+# below is only used for SSH; it is stable while the instance runs but CHANGES
+# if the box is ever stopped/started — re-run `terraform output public_ip` and
+# update the `skill-tree` SSH host if that happens.
 resource "aws_instance" "api" {
   ami                         = data.aws_ami.amazon_linux_arm.id
   instance_type               = var.instance_type
@@ -66,10 +59,4 @@ resource "aws_instance" "api" {
     prevent_destroy = false
     ignore_changes  = [ami]
   }
-}
-
-# Bind the Elastic IP to the instance.
-resource "aws_eip_association" "api" {
-  instance_id   = aws_instance.api.id
-  allocation_id = aws_eip.api.id
 }

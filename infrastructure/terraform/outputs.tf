@@ -3,9 +3,9 @@ output "instance_id" {
   value       = aws_instance.api.id
 }
 
-output "elastic_ip" {
-  description = "Elastic IP — point the `skill-tree` SSH host at this"
-  value       = aws_eip.api.public_ip
+output "public_ip" {
+  description = "Auto-assigned public IP — point the `skill-tree` SSH host at this (no EIP: account quota is full; the IP changes if the box is stopped/started)"
+  value       = aws_instance.api.public_ip
 }
 
 output "private_ip" {
@@ -25,5 +25,5 @@ output "ami_id" {
 
 output "ssh_command" {
   description = "Convenience SSH command"
-  value       = "ssh -i ~/.ssh/${var.key_pair_name}.pem ec2-user@${aws_eip.api.public_ip}"
+  value       = "ssh -i ~/.ssh/${var.key_pair_name}.pem ec2-user@${aws_instance.api.public_ip}"
 }

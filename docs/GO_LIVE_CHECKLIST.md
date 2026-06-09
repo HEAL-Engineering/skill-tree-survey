@@ -25,8 +25,8 @@ human runbook that ties it together.
 |---|------|--------------------|--------|
 | 0 | 1Password vaults + Sentry DSN | — | ✅ done |
 | 1 | Cloudflare Tunnel + `TUNNEL_TOKEN` + CORS | before first prod deploy | ⬜ |
-| 2 | AWS credentials ready | before Terraform | ⬜ |
-| 3 | Terraform: provision **fresh** prod EC2 (+EIP, **with Claude**) → update SSH config | after Phase 6 merged | ⬜ |
+| 2 | AWS credentials ready | before Terraform | ✅ done |
+| 3 | Terraform: provision **fresh** prod EC2 (**with Claude**) → update SSH config | after Phase 6 merged | ✅ done (no EIP — quota full; auto-assigned IP) |
 | 4 | Build image to GHCR + make package **public** | before first prod deploy | ⬜ |
 | 5 | First `task prod:deploy` to the new box + verify tunnel | after 1, 3, 4 | ⬜ |
 | 6 | Terminate the **OLD** box + arm `prevent_destroy` | after 5 verifies green | ⬜ |
@@ -73,10 +73,10 @@ We stand up a brand-new box (no risky import). `prevent_destroy` is `false` for 
 
 1. [ ] `task tf:gen` (repo root) — writes the **gitignored** `prod.tfvars` from 1Password vault `SKILL-TREE-INFRA` (VPC + subnet IDs).
 2. [ ] `terraform init`
-3. [ ] `terraform plan -var-file=environments/prod.tfvars` → expect **creates only** (instance, EIP, association, SG). Nothing destroyed.
+3. [ ] `terraform plan -var-file=environments/prod.tfvars` → expect **creates only** (instance, SG — no EIP, account quota is full). Nothing destroyed.
 4. [ ] `terraform apply -var-file=environments/prod.tfvars`
 5. [ ] ⚠️ **Grab the new IP and update SSH** — Claude will remind you here:
-   - `terraform output elastic_ip`
+   - `terraform output public_ip`
    - Point `~/.ssh/config` `Host skill-tree` → that IP (this is the alias `task prod:deploy` uses).
 6. [ ] Wait for first-boot Docker install: `ssh skill-tree 'cloud-init status --wait'` (~1–3 min).
 
@@ -100,7 +100,7 @@ We stand up a brand-new box (no risky import). `prevent_destroy` is `false` for 
 
 ## Step 5 — First production deploy (to the new box)
 
-**Gate:** after Steps 1 (token), 3 (new box + EIP + SSH), 4 (image public).
+**Gate:** after Steps 1 (token), 3 (new box + IP + SSH), 4 (image public).
 **Where:** your workstation (1Password unlocked + signed in; `task env:setup` if needed).
 
 1. [ ] On `main` (preflight requires it; or `FORCE=1` to test from the branch).
@@ -188,7 +188,7 @@ We stand up a brand-new box (no risky import). `prevent_destroy` is `false` for 
 - [ ] **Auto-deploy loop:** push a trivial backend change to `main` → Actions builds → **Watchtower** updates the container within ~5 min (`task prod:logs`).
 - [ ] **Sentry** receives events (check the project after a deploy / handled error).
 - [ ] **Data persists:** survey data survives a Watchtower image update (SQLite is on the `sqlite_data` named volume).
-- [ ] SSH still works against the EIP; `ssh_allowed_cidrs` tightened from `0.0.0.0/0` if desired.
+- [ ] SSH still works against the box's public IP (`terraform output public_ip` — it changes on stop/start); `ssh_allowed_cidrs` tightened from `0.0.0.0/0` if desired.
 - [ ] `prevent_destroy = true` is committed (armed in Step 6).
 
 ---
@@ -199,7 +199,7 @@ We stand up a brand-new box (no risky import). `prevent_destroy` is `false` for 
 Decisions (confirmed)
    ├─▶ Step 1 Cloudflare Tunnel (TUNNEL_TOKEN, CORS) ─┐
    └─▶ Step 7 Vercel (VITE_API_URL, CORS) ◀───────────┤ (needs backend hostname)
-Step 2 AWS creds ─▶ Step 3 Terraform (fresh box + EIP) ─▶ update SSH ─┐
+Step 2 AWS creds ─▶ Step 3 Terraform (fresh box + public IP) ─▶ update SSH ─┐
 Step 4 GHCR image (public) ───────────────────────────────────────────┤
                                                                        ▼
                                                    Step 5 prod deploy ─▶ verify

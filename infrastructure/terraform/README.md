@@ -30,7 +30,7 @@ Tunnel, so most of heal-api's moving parts don't apply here.
 | Resource | Notes |
 |----------|-------|
 | `aws_instance.api` | The prod box. **Created fresh**, then we cut over to it. |
-| `aws_eip.api` + association | Stable public IP for SSH (`terraform output elastic_ip`). |
+| _(no Elastic IP)_ | Account EIP quota is full — SSH uses the auto-assigned public IP (`terraform output public_ip`); it changes on stop/start. |
 | `aws_security_group.ec2` | SSH-in + all-out. No 80/443 (tunnel is outbound). |
 
 ## What it deliberately does NOT manage (unlike heal-api)
@@ -117,7 +117,7 @@ terraform plan -var-file=environments/prod.tfvars
 terraform apply -var-file=environments/prod.tfvars
 
 # 4. Grab the new public IP and update your SSH config.
-terraform output elastic_ip          # e.g. 3.x.x.x
+terraform output public_ip           # e.g. 3.x.x.x
 terraform output ssh_command         # ready-made ssh line
 ```
 
@@ -129,7 +129,7 @@ Point the **`skill-tree`** SSH host (used by `task prod:deploy`) at that IP:
 ```sshconfig
 # ~/.ssh/config
 Host skill-tree
-  HostName <elastic_ip from above>
+  HostName <public_ip from above>
   User ec2-user
   IdentityFile ~/.ssh/skill-tree-keypair.pem
 ```

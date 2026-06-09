@@ -6,8 +6,9 @@
 # is SSH (for `task prod:deploy` and admin). Everything outbound is allowed
 # (GHCR image pulls, dnf updates, the Cloudflare Tunnel, Sentry, etc.).
 resource "aws_security_group" "ec2" {
-  name        = "${var.project_name}-ec2-${var.environment}"
-  description = "skill-tree-survey EC2 — SSH in, all out (app traffic via Cloudflare Tunnel, outbound-only)"
+  name = "${var.project_name}-ec2-${var.environment}"
+  # AWS SG descriptions must be ASCII-only.
+  description = "skill-tree-survey EC2 - SSH in, all out (app traffic via Cloudflare Tunnel, outbound-only)"
   vpc_id      = var.vpc_id
 
   dynamic "ingress" {
