@@ -55,8 +55,9 @@ resource "aws_instance" "api" {
   }
 
   lifecycle {
-    # ⚠️ TODO: flip to true after the first successful deploy + verify (see README).
-    prevent_destroy = false
+    # Armed after the first successful deploy + verify (go-live Step 6).
+    # To intentionally rebuild the box, see README → "Rebuilding / replacing".
+    prevent_destroy = true
     ignore_changes  = [ami]
   }
 }
