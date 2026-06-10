@@ -3,6 +3,14 @@
 How Skill Tree Survey ships to production. The design goal is **no manual deploy
 step for code**: merge to `main` and the running container updates itself.
 
+## TL;DR — the three operations you'll actually do
+
+| You want to… | Do this |
+|--------------|---------|
+| **Ship code** | Merge a PR to `main`. Done — the backend image builds → Watchtower swaps it in (~5 min); Vercel ships the frontend. |
+| **Change a secret / config** | Edit the item in 1Password (`SKILL-TREE-PROD` vault) → `task prod:deploy` |
+| **Roll back the backend** | Pin `image: …:prod-<good-sha>` in `docker-compose.prod.yml` → `task prod:deploy` (details [below](#rollback)) |
+
 > First-time setup (provisioning, Cloudflare, Vercel, DNS) is a separate, ordered
 > runbook — see [GO_LIVE_CHECKLIST.md](GO_LIVE_CHECKLIST.md). This document covers
 > the steady-state pipeline once that's done.
@@ -35,6 +43,36 @@ push ──▶ Vercel Git integration ──▶ build (pnpm) ──▶ https://s
   (`cloudflared` container) terminates TLS at Cloudflare's edge and forwards the
   public hostname to `backend:8000`. It's outbound-only: **no ports are published on
   the box and no certs live on it**.
+
+## How a request reaches the backend (the tunnel, visually)
+
+DNS for `heal.engineering` is served by Cloudflare (registration stays at
+Namecheap). The API hostname is a proxied CNAME pointing at
+`<tunnel-id>.cfargotunnel.com` — not a real server, just a routing label that
+tells Cloudflare's edge which tunnel to deliver into:
+
+```
+        Browser
+           │  https://skills-survey-api.heal.engineering
+           ▼
+   ① DNS lookup ──▶ Cloudflare nameservers answer with Cloudflare edge IPs
+           ▼          (record is proxied/orange — your box's IP is never public)
+   ② Cloudflare edge (nearest datacenter)
+        • terminates TLS (universal cert — nothing on the box to expire)
+        • hostname → "belongs to tunnel skill-tree-survey"
+           │
+           ▼   ③ pushed DOWN one of the persistent QUIC connections that
+           │      cloudflared opened OUTBOUND from the box at startup
+   ┌───────┴────────────────────────────────────┐
+   │  EC2 — inbound ports: SSH only             │
+   │   cloudflared ──▶ http://backend:8000      │  (compose service name)
+   │                       └─▶ FastAPI ─▶ SQLite│
+   └────────────────────────────────────────────┘
+```
+
+Nothing ever connects *into* the box — `cloudflared` dials out and keeps the
+connections open; Cloudflare pushes requests down them. That's why the security
+group has no 80/443 and why there are no certificates to manage or renew.
 
 ## Environments
 

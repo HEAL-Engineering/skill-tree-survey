@@ -37,29 +37,33 @@ cd backend && uv sync && uv run uvicorn app.main:app --reload
 
 ## Branching & workflow
 
+Trunk-based — one protected branch:
+
 ```
-feature branch ──PR──▶ develop ──PR──▶ main ──▶ build + auto-deploy
+feature branch ──PR──▶ main ──▶ build + auto-deploy
+                                 ├─ backend: GHCR image → Watchtower (~5 min)
+                                 └─ frontend: Vercel
 ```
 
-- **`main`** — production. Merging here triggers the GHCR image build; Watchtower
-  rolls it out to the EC2 within ~5 min, and Vercel deploys the frontend.
-- **`develop`** — integration branch. Branch your work off `develop` and PR back into it.
+- **`main`** — the only long-lived branch, protected. Merging a PR here *is* the
+  deploy: the GHCR image build kicks off, Watchtower rolls it onto the EC2, and
+  Vercel ships the frontend.
 - **Feature branches** — `<username>/<ticket-id>/<short-description>`,
   e.g. `nate/HEA-123/add-user-dashboard`. (External contributors: fork and open a
-  PR against `develop`; the branch name convention is optional.)
+  PR against `main`; the branch name convention is optional.)
 
 ```bash
-git checkout develop && git pull
+git checkout main && git pull
 git checkout -b <username>/<ticket-id>/<short-description>
 # …work…
 git push -u origin <branch>
-gh pr create --base develop
+gh pr create
 ```
 
-Keep a long-running branch fresh by rebasing on `develop`:
+Keep a long-running branch fresh by rebasing on `main`:
 
 ```bash
-git fetch origin && git rebase origin/develop
+git fetch origin && git rebase origin/main
 git push --force-with-lease
 ```
 
@@ -102,7 +106,7 @@ pnpm build
 
 ## Pull requests
 
-1. Pull/rebase the latest `develop` and make sure CI checks pass locally.
+1. Pull/rebase the latest `main` and make sure CI checks pass locally.
 2. Keep the PR to a **single clear purpose** (no drive-by refactors).
 3. Fill out the [PR template](.github/pull_request_template.md); add tests for new behavior.
 4. **Never commit secrets** — no `.env*`, tokens, keys, or real passwords. Secrets

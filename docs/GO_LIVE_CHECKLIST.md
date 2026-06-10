@@ -24,11 +24,11 @@ human runbook that ties it together.
 | # | Step | Gate (do it when…) | Status |
 |---|------|--------------------|--------|
 | 0 | 1Password vaults + Sentry DSN | — | ✅ done |
-| 1 | Cloudflare Tunnel + `TUNNEL_TOKEN` + CORS | before first prod deploy | ⬜ |
+| 1 | Cloudflare Tunnel + `TUNNEL_TOKEN` + CORS | before first prod deploy | ✅ done (incl. moving heal.engineering DNS to Cloudflare — see note) |
 | 2 | AWS credentials ready | before Terraform | ✅ done |
 | 3 | Terraform: provision **fresh** prod EC2 (**with Claude**) → update SSH config | after Phase 6 merged | ✅ done (no EIP — quota full; auto-assigned IP) |
-| 4 | Build image to GHCR + make package **public** | before first prod deploy | ⬜ |
-| 5 | First `task prod:deploy` to the new box + verify tunnel | after 1, 3, 4 | ⬜ |
+| 4 | Build image to GHCR + make package **public** | before first prod deploy | ✅ done |
+| 5 | First `task prod:deploy` to the new box + verify tunnel | after 1, 3, 4 | ✅ done (200 + valid TLS via edge) |
 | 6 | Terminate the **OLD** box + arm `prevent_destroy` | after 5 verifies green | ⬜ |
 | 7 | Vercel project + domain (frontend) | after backend hostname is live | ⬜ |
 | 8 | **Drop the test EC2** + test DNS | after prod confirmed healthy | ⬜ |
@@ -41,6 +41,14 @@ human runbook that ties it together.
 
 **Gate:** before the first prod deploy — `cloudflared` won't start without `TUNNEL_TOKEN`.
 **Where:** Cloudflare dashboard (the `heal.engineering` zone must already be on Cloudflare).
+
+> ✅ **Done — with two lessons learned.** (1) The zone wasn't on Cloudflare, so we
+> migrated DNS: added heal.engineering to Cloudflare (free plan), replicated every
+> Namecheap record **grey-cloud** (incl. 3 A records the scan missed and the 2 MX),
+> then pointed Namecheap's nameservers at Cloudflare. Registration stays at
+> Namecheap; Cloudflare now answers all DNS. (2) The tunnel route was created
+> *before* the zone existed, so the CNAME was never auto-created — it was added
+> manually: `skills-survey-api` → `<tunnel-id>.cfargotunnel.com`, **proxied**.
 
 1. [ ] **Zero Trust → Networks → Tunnels → Create a tunnel** → connector **Cloudflared** → name it `skill-tree-survey`.
 2. [ ] Copy the tunnel **token** (the long `eyJ…` string in the install command — just the token).
@@ -90,7 +98,7 @@ We stand up a brand-new box (no risky import). `prevent_destroy` is `false` for 
 **Where:** GitHub Actions + GitHub org package settings.
 
 1. [ ] Trigger a build:
-   - **Recommended:** merge `develop → main` (the finale) — `build-and-push.yml` builds arm64 on push to `main`.
+   - **Recommended:** merge the release PR to `main` — `build-and-push.yml` builds arm64 on push to `main`.
    - **Early test:** GitHub → **Actions → "Build and Push Image" → Run workflow** (`workflow_dispatch`).
 2. [ ] Confirm the package appears: GitHub → org **HEAL-Engineering → Packages → `skill-tree-survey-api`**.
 3. [ ] ⚠️ **Make the package Public:** Package → **Package settings → Change visibility → Public**. (So Watchtower/compose pull with no auth.)
@@ -161,7 +169,7 @@ We stand up a brand-new box (no risky import). `prevent_destroy` is `false` for 
 2. [ ] **Terminate** it: `aws ec2 terminate-instances --instance-ids <test-id> --region us-east-2`.
 3. [ ] Release any **test Elastic IP** (else it bills): `aws ec2 release-address --allocation-id <alloc-id> --region us-east-2`.
 4. [ ] Delete the test-only security group (if dedicated).
-5. [ ] **Cloudflare DNS:** remove `test-skills-survey.heal.engineering` (and any stale old-prod `A` record now replaced by the tunnel CNAME).
+5. [ ] **Cloudflare DNS** (records live in Cloudflare now, not Namecheap): no `test-skills-survey` record exists anymore. ⚠️ Do **NOT** touch `test-api.heal.engineering` — that's **heal-api's** test environment, not skill-tree's. The old-prod `skills-survey` A record (old box IP) gets repointed to Vercel in Step 7 (don't delete it before then).
 6. [ ] **GitHub → Settings → Environments:** delete any `test` environment + its secrets. (Test deploy workflows were already removed in Phase 5.)
 
 **Verify:** [ ] nothing resolves/deploys to the test host anymore.
