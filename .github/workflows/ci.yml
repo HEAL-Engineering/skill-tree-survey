@@ -3,7 +3,7 @@ name: CI
 # Lints, type-checks, tests, and builds both apps on every PR.
 on:
   pull_request:
-    branches: [main, develop]
+    branches: [main]
   workflow_dispatch:
 
 concurrency:

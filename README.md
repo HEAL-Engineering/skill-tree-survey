@@ -190,7 +190,8 @@ and the frontend lint/typecheck/build on every PR.
 
 ## Deployment
 
-- **Overview & runbook:** [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
+- **Architecture & patterns:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- **Deploy pipeline & operations:** [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
 - **Infrastructure (Terraform):** [infrastructure/terraform/README.md](infrastructure/terraform/README.md)
 - **EC2 + Cloudflare Tunnel setup:** [docs/AWS_SETUP.md](docs/AWS_SETUP.md)
 - **First-time go-live (manual steps):** [docs/GO_LIVE_CHECKLIST.md](docs/GO_LIVE_CHECKLIST.md)
@@ -198,8 +199,8 @@ and the frontend lint/typecheck/build on every PR.
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the branch/commit conventions, local
-setup, and PR process. For deeper architecture and conventions, see
-[CLAUDE.md](CLAUDE.md).
+setup, and PR process. For architecture and code patterns, see
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## License
 
